@@ -4,7 +4,7 @@ ENTRY(_start)
 
 MEMORY
 {
-    ram   (wxa!ri) : ORIGIN = 0x80000000, LENGTH = 128M
+    ram   (wxa!ri) : ORIGIN = 0x80000000, LENGTH = 0x4000
 }
 
 PHDRS
@@ -29,15 +29,17 @@ SECTIONS
     } >ram AT>ram :text
 
     .data : {
-        . = ALIGN(4096);
+        . = ALIGN(4K);
         PROVIDE(_data_start = .);
         *(.sdata .sdata.*) *(.data .data.*)
         PROVIDE(_data_end = .);
     } >ram AT>ram :data
 
-    .bss :{
+    .bss : {
         PROVIDE(_bss_start = .);
         *(.sbss .sbss.*) *(.bss .bss.*)
+        . += 4K;
+		PROVIDE(_stack_top = .);
         PROVIDE(_bss_end = .);
     } >ram AT>ram :bss
 

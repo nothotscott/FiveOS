@@ -7,7 +7,7 @@
 
 #include <fiveos.h>
 
-PUCHAR Uart = (PUCHAR)0x10000000;
+PUCHAR Uart = (PUCHAR)0x10010000;
 
 VOID PutChar(CHAR Char)
 {

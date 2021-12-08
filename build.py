@@ -3,20 +3,20 @@
 # PURPOSE:     Primary build functions
 # COPYRIGHT:   Copyright 2021 Scott Maday <coldasdryice1@gmail.com>
 
-import os, sys, logging, subprocess
+import os, sys, logging, subprocess, shutil
 import multiprocessing
 from platform import uname
 from optparse import OptionParser
 
 # Main configuration
 OSNAME			= "FiveOS"
+KERNEL_NAME		= "fiveos.elf"
 OUTPUT_DIR		= "output-rv32i"
 DEFAULT_TASKS	= []
 CMAKE_VARS		= []
 # Qemu configuration
-QEMU_MEMORY		= "512M"
 QEMU_CORES		= 1
-QEMU_MISC		= "-machine sifive_u -net none -nographic"
+QEMU_MISC		= "-machine virt -net none -monitor stdio"
 
 is_wsl = "Microsoft" in uname().release
 logger = logging.getLogger()
@@ -40,6 +40,11 @@ def execute(command, exit_if_failed = True):
 
 ### Tasks ###
 
+def clean():
+	if os.path.exists(OUTPUT_DIR):
+		logger.info("Cleaning output directory")
+		shutil.rmtree(OUTPUT_DIR, ignore_errors = False)
+
 def build(target=None):
 	jobs = max(1, multiprocessing.cpu_count())
 	cmake_vars = CMAKE_VARS
@@ -52,13 +57,13 @@ def build(target=None):
 
 
 def run_qemu():
-	kernel_path = os.path.join(OUTPUT_DIR, "{}.elf".format(OSNAME))
+	kernel_path = os.path.join(OUTPUT_DIR, KERNEL_NAME)
 	if not os.path.exists(kernel_path):
 		logger.warning("No kernel found before running. Getting now.")
-		build("fiveos.elf")
+		build(KERNEL_NAME)
 	qemu = "qemu-system-riscv32{}".format(".exe" if is_wsl else "")
-	args = ["-kernel", kernel_path]
-	args += ["-smp", str(QEMU_CORES), "-m", QEMU_MEMORY]
+	args = ["-kernel", kernel_path, "-bios", "none"]
+	args += ["-smp", str(QEMU_CORES)]
 	args += QEMU_MISC.split(" ")
 	if debug:
 		args += ["-s", "-S"]
@@ -78,7 +83,8 @@ def main():
 	logging.basicConfig(level=logging.DEBUG)
 
 	parser = OptionParser()
-	parser.add_option("-d", "--debug", action="store_true", default=True, help="Enables debug mode")
+	parser.add_option("-c", "--clean", action="store_true", help="Cleans the output directories")
+	parser.add_option("-d", "--debug", action="store_true", help="Enables debug mode")
 	parser.add_option("-b", "--build", action="store_true", help="Builds the FiveOS Kernel")
 	parser.add_option("-r", "--run", action="store_true", help="Runs FiveOS in qemu")
 	options, _ = parser.parse_args()
@@ -87,8 +93,10 @@ def main():
 			setattr(options, task, True)
 
 	debug = options.debug
+	if options.clean:
+		clean()
 	if options.build:
-		build("fiveos.elf")
+		build(KERNEL_NAME)
 	if options.run:
 		run_qemu()
 
